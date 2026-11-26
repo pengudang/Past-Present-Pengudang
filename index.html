@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -208,7 +209,7 @@ footer{max-width:960px;margin:0 auto;padding:0 0 40px;color:var(--mute);font-siz
 <label><span data-i18n="vCode">Passcode</span><input type="password" id="vcode" autocomplete="off" required></label>
 <p class="err" id="verr" role="alert" hidden data-i18n="vBad">Wrong passcode. Try again.</p>
 <div class="row"><button class="back" type="submit" data-i18n="vGo">Log in</button><button class="x" type="button" id="vcancel" data-i18n="cancel" style="margin:0">Cancel</button></div></form></dialog>
-<dialog id="dlg"><div id="dph"></div><div class="t"><q id="dcap"></q><small id="dby" style="display:block;color:var(--mute);margin-top:6px"></small><div id="rep"></div><form method="dialog"><button class="x" data-i18n="close">Close</button></form></div></dialog>
+<dialog id="dlg"><div id="dph"></div><div class="t"><q id="dcap"></q><small id="dby" style="display:block;color:var(--mute);margin-top:6px"></small><div id="dtr" style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--mute);font-size:.85rem"></div><div id="rep"></div><form method="dialog"><button class="x" data-i18n="close">Close</button></form></div></dialog>
 
 <script>
 const MAX_BYTES=20*1024*1024;
@@ -217,7 +218,7 @@ const PHOTOS=[];
 /* ---------- Villager passcode (prototype only: change it here) ---------- */
 // This check runs in the visitor's browser, so anyone who views the page source can read it.
 // It keeps casual guests out. For real protection the check must move to a server.
-const VILLAGER_CODE='i<3pengudang';
+const VILLAGER_CODE='kampung2026';
 
 const BYID={'Anonymous':'Anonim','A guest':'Seorang tamu','The Lim family':'Keluarga Lim','The Tan family':'Keluarga Tan'};
 const TOID={'future guests':'tamu berikutnya'};
@@ -263,7 +264,7 @@ en:{
  all:'All',toLbl:'To ',from:'From ',video:'▶ Video',
  openLetter:(to,k)=>'Open letter'+(to?' to '+to:'')+' about '+k,photoAlt:'Guest photo: ',videoAria:'Video: ',
  lhAll:'Letters',lhK:k=>'Letters about '+k,
- llAll:'Photos and videos from guests, each with a letter to someone in the village.',llK:k=>'Photos and videos from guests who wrote about '+k.toLowerCase()+'.',
+ llAll:'Photos and videos from guests, each with a letter to someone in the village. Letters written in Indonesian are translated automatically.',llK:k=>'Photos and videos from guests who wrote about '+k.toLowerCase()+'. Letters written in Indonesian are translated automatically.',trAuto:'Translated automatically',trShowOrig:'Show original',trShowTr:'Show translation',trWorking:'Translating…',trFail:"Couldn't translate right now. Showing the original.",
  none:k=>'No letters about '+k+' yet in this prototype. Be the first to write one.',
  wordAria:(k,n)=>k+', '+n+' letters and moments',wordTitle:n=>n+' letters and moments',
  pvKw:'Keyword',pvBody:'Your letter will show here.',
@@ -306,7 +307,7 @@ id:{
  all:'Semua',toLbl:'Kepada ',from:'Dari ',video:'▶ Video',
  openLetter:(to,k)=>'Buka surat'+(to?' untuk '+to:'')+' tentang '+k,photoAlt:'Foto tamu: ',videoAria:'Video: ',
  lhAll:'Surat',lhK:k=>'Surat tentang '+k,
- llAll:'Foto dan video dari tamu, masing-masing dengan surat untuk seseorang di desa. Surat baru ditampilkan dalam bahasa yang ditulis tamu.',llK:k=>'Foto dan video dari tamu yang menulis tentang '+k.toLowerCase()+'. Surat baru ditampilkan dalam bahasa yang ditulis tamu.',
+ llAll:'Foto dan video dari tamu, masing-masing dengan surat untuk seseorang di desa. Surat yang ditulis dalam bahasa Inggris diterjemahkan otomatis.',llK:k=>'Foto dan video dari tamu yang menulis tentang '+k.toLowerCase()+'. Surat yang ditulis dalam bahasa Inggris diterjemahkan otomatis.',trAuto:'Diterjemahkan otomatis',trShowOrig:'Lihat aslinya',trShowTr:'Lihat terjemahan',trWorking:'Menerjemahkan…',trFail:'Belum bisa diterjemahkan sekarang. Menampilkan aslinya.',
  none:k=>'Belum ada surat tentang '+k+' di prototipe ini. Jadilah yang pertama menulis.',
  wordAria:(k,n)=>k+', '+n+' surat dan momen',wordTitle:n=>n+' surat dan momen',
  pvKw:'Kata kunci',pvBody:'Suratmu akan tampil di sini.',
@@ -329,11 +330,131 @@ let lang='en';
 try{const sv=localStorage.getItem('pglang');if(sv==='id'||sv==='en')lang=sv}catch(e){}
 const t=(k,...a)=>{const v=STR[lang][k]!==undefined?STR[lang][k]:STR.en[k];return typeof v==='function'?v(...a):v};
 const L=()=>lang==='id';
-const kw=k=>L()?(KWID[k]||k):k;
-function pv(p){
-  if(L()&&p.bm)return {to:p.bm.to,body:p.bm.body,c:p.bm.c,b:BYID[p.b]||p.b};
-  return {to:L()?(TOID[p.to]||p.to):p.to,body:p.body,c:p.c,b:L()?(BYID[p.b]||p.b):p.b};
+/* ---------- automatic translation (English <-> Bahasa Indonesia) ----------
+   Free services only: Google's public "gtx" endpoint first, MyMemory as a backup.
+   A translation is saved on the post/reply in Supabase, so each one is translated once and everyone then sees the same text. */
+const KWT={};
+const KWEN=Object.fromEntries(Object.entries(KWID).map(([a,b])=>[b,a]));
+const kw=k=>L()?(KWID[k]||KWT['id|'+k]||k):(KWEN[k]||KWT['en|'+k]||k);
+const BYEN=Object.fromEntries(Object.entries(BYID).map(([a,b])=>[b,a]));
+const nameFor=b=>L()?(BYID[b]||b):(BYEN[b]||b);
+const IDW=new Set('yang dan di ke dari ini itu untuk dengan saya kami kita kalian tidak ada akan juga sudah karena pada dalam adalah sangat bisa banyak sekali lagi saat tapi atau oleh seperti sebuah semua mereka kamu anda telah membuat membawa mengajari kepada'.split(' '));
+const ENW=new Set('the and of to in is are was were you we our your for with that this it they them on at as have had be by from but not all what when would will can about one so an my me us his her their there which who if than then too very'.split(' '));
+function detect(s){const w=String(s||'').toLowerCase().match(/[a-z']+/g)||[];let a=0,b=0;for(const x of w){if(IDW.has(x))a++;if(ENW.has(x))b++}return a>b?'id':b>a?'en':null}
+const srcLang=p=>p.wl||detect(p.body||p.c)||'en';
+const SO={
+ id:{'With thanks,':'Terima kasih,','Terima kasih,':'Terima kasih,','With love,':'Dengan kasih,','Until the tide returns,':'Sampai pasang datang lagi,','See you soon,':'Sampai jumpa lagi,','Salam hormat,':'Salam hormat,','Dengan kasih,':'Dengan kasih,','Sampai pasang datang lagi,':'Sampai pasang datang lagi,','Sampai jumpa lagi,':'Sampai jumpa lagi,'},
+ en:{'Terima kasih,':'With thanks,','Salam hormat,':'Kind regards,','Dengan kasih,':'With love,','Sampai pasang datang lagi,':'Until the tide returns,','Sampai jumpa lagi,':'See you soon,','With thanks,':'With thanks,','With love,':'With love,','Until the tide returns,':'Until the tide returns,','See you soon,':'See you soon,'}
+};
+const KNOWN_SO=new Set([...Object.keys(SO.id),...Object.keys(SO.en)]);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function mtChunk(q,tl){
+  try{
+    const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl='+tl+'&dt=t&q='+encodeURIComponent(q));
+    if(!r.ok)throw new Error('gtx');
+    const j=await r.json(),s=(j[0]||[]).map(x=>(x&&x[0])||'').join('');
+    if(!s)throw new Error('gtx');
+    return s;
+  }catch(e){}
+  const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(q)+'&langpair='+(tl==='id'?'en|id':'id|en'));
+  if(!r.ok)throw new Error('mt');
+  const j=await r.json(),s=j&&j.responseData&&j.responseData.translatedText;
+  if(!s||Number(j.responseStatus)!==200||/MYMEMORY WARNING|INVALID/i.test(s))throw new Error('mt');
+  return s;
 }
+const MTC=new Map();
+async function mt(text,tl){
+  text=String(text||'');if(!text.trim())return '';
+  const key=tl+'|'+text;if(MTC.has(key))return MTC.get(key);
+  const out=[];
+  for(const line of text.split('\n')){
+    if(!line.trim()){out.push('');continue}
+    const sents=line.length>400?(line.match(/[^.!?]+[.!?]*\s*/g)||[line]):[line];
+    const segs=[];let buf='';
+    for(const s of sents){if(buf&&(buf+s).length>400){segs.push(buf);buf=s}else buf+=s}
+    if(buf)segs.push(buf);
+    const parts=[];
+    for(let sg of segs){while(sg.length>400){parts.push(sg.slice(0,400));sg=sg.slice(400)}if(sg.trim())parts.push(sg)}
+    const tr=[];
+    for(const sg of parts){tr.push((await mtChunk(sg.trim(),tl)).trim());await sleep(80)}
+    out.push(tr.join(' '));
+  }
+  const res=out.join('\n');MTC.set(key,res);return res;
+}
+async function trPost(p,tl){
+  const fut=p.to===STR.en.futureTo||p.to===STR.id.futureTo;
+  const to=fut?STR[tl].futureTo:await mt(p.to,tl);
+  const hasBody=!!(p.body&&p.body.trim());
+  const body=await mt(hasBody?p.body:p.c,tl);
+  let k=tl==='id'?(KWID[p.k]||''):(KWEN[p.k]||'');
+  if(!k)k=await mt(p.k,tl);
+  k=k.replace(/[.!?]+$/,'').trim();k=k.charAt(0).toUpperCase()+k.slice(1);
+  let c=body;
+  if(hasBody){
+    const last=((p.c||'').split('\n\n').pop()||'').split('\n');
+    const sig=KNOWN_SO.has(last[0]);
+    const so=sig?(SO[tl][last[0]]||last[0]):'';
+    const by=sig?last.slice(1).join('\n'):(p.b||'');
+    const nm=tl==='id'?(BYID[by]||by):(BYEN[by]||by);
+    c=(fut?STR[tl].dearFuture:STR[tl].dearHead(to))+'\n\n'+body+'\n\n'+(so?so+'\n':'')+nm;
+  }
+  return{to,body:hasBody?body:'',c,k};
+}
+const trReply=(r,tl)=>mt(r.text,tl);
+const TRQ=new Set(),TRF=new Set(),PERS=new Set(),TRS={},TRJOBS=[],showOrig=new Set();
+let trRun=false,rtimer;
+const cleanTr=o=>o&&typeof o==='object'?{to:String(o.to||'').slice(0,200),body:String(o.body||'').slice(0,1200),c:String(o.c||'').slice(0,1500),k:String(o.k||'').slice(0,48)}:null;
+const trGet=p=>{const o=cleanTr((p.tr&&p.tr[lang])||TRS[p.id+'|'+lang]);return o&&(o.c||o.body)?o:null};
+function scheduleRender(){clearTimeout(rtimer);rtimer=setTimeout(()=>{refresh();if(dlg.open&&!(($('rtx')||{}).value))renderDialog()},250)}
+async function persist(col,id,cur,tl,val){
+  const key=col+id+tl;if(!db||!cur||PERS.has(key))return;PERS.add(key);
+  try{const raw=cur.raw||{};await db.collection(col).doc(id).update({...raw,tr:{...(raw.tr||{}),[tl]:val}})}catch(e){}
+}
+async function pumpTr(){
+  if(trRun)return;trRun=true;
+  while(TRJOBS.length){
+    const j=TRJOBS.shift();
+    try{
+      if(j.kind==='p'){
+        const res=await trPost(j.p,j.tl);TRS[j.p.id+'|'+j.tl]=res;
+        if(res.k&&!KWT[j.tl+'|'+j.p.k])KWT[j.tl+'|'+j.p.k]=res.k;
+        persist('photos',j.p.id,remote.find(x=>x.id===j.p.id),j.tl,res);
+      }else{
+        const res=await trReply(j.r,j.tl);TRS['r'+j.r.id+'|'+j.tl]=res;
+        persist('replies',j.r.id,repsRemote.find(x=>x.id===j.r.id),j.tl,res);
+      }
+    }catch(e){TRF.add(j.key)}
+    TRQ.delete(j.key);scheduleRender();await sleep(120);
+  }
+  trRun=false;
+}
+function queueTr(job){if(TRQ.has(job.key)||TRF.has(job.key))return;TRQ.add(job.key);TRJOBS.push(job);pumpTr()}
+const needPost=p=>queueTr({kind:'p',p,tl:lang,key:'p|'+p.id+'|'+lang});
+const needReply=r=>queueTr({kind:'r',r,tl:lang,key:'r|'+r.id+'|'+lang});
+function trState(p){
+  if(!p.id)return 'none';
+  if(srcLang(p)===lang)return 'none';
+  if(showOrig.has(p.id))return 'orig';
+  if(trGet(p))return 'auto';
+  if(TRF.has('p|'+p.id+'|'+lang))return 'fail';
+  return 'pending';
+}
+function pv(p){
+  const st=trState(p),b=nameFor(p.b);
+  if(st==='auto'){const o=trGet(p);return{to:o.to,body:o.body,c:o.c,b,st}}
+  if(st==='pending')needPost(p);
+  return{to:p.to,body:p.body,c:p.c,b,st};
+}
+function replyView(r){
+  if(r.tx)return{text:r.tx[lang]||r.tx.en,auto:false,pending:false};
+  const sl=detect(r.text)||r.lang||'en';
+  if(sl===lang||!r.id)return{text:r.text,auto:false,pending:false};
+  const got=(r.tr&&typeof r.tr[lang]==='string'&&r.tr[lang])||TRS['r'+r.id+'|'+lang];
+  if(got)return{text:String(got).slice(0,1000),auto:true,pending:false};
+  if(TRF.has('r|'+r.id+'|'+lang))return{text:r.text,auto:false,pending:false};
+  needReply(r);return{text:r.text,auto:false,pending:true};
+}
+
 
 const cloud=$('cloud'),grid=$('grid'),dlg=$('dlg');
 let remote=[],local=[],db=null,assets=null,curK='All',lastNew=null,pm='photo',openP=null,confirmDel=false;
@@ -352,7 +473,7 @@ function weights(){
 function normKw(s){
   s=kwCanon(s);if(!s)return '';
   const lo=s.toLowerCase();
-  const hit=weights().find(x=>x.k.toLowerCase()===lo||(KWID[x.k]||'').toLowerCase()===lo);
+  const hit=weights().find(x=>[x.k,KWID[x.k],KWT['en|'+x.k],KWT['id|'+x.k]].some(v=>v&&String(v).toLowerCase()===lo));
   return hit?hit.k:s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
 }
 function mk(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
@@ -397,7 +518,7 @@ function thumb(p,h,full){
   const d=document.createElement('div');d.className='ph';d.style.cssText='height:'+(h||p.h||130)+'px;background:linear-gradient(160deg,'+grad(p)[0]+','+grad(p)[1]+')';d.textContent=emo(p);return d;
 }
 function openPhoto(p){
-  openP=p;confirmDel=false;
+  openP=p;confirmDel=false;$('rep').replaceChildren();
   const d=$('dph');d.replaceChildren(p.img?thumb(p,420,true):document.createTextNode(emo(p)));
   d.className=p.img?'':'ph';d.style.background=p.img?'none':'linear-gradient(160deg,'+grad(p)[0]+','+grad(p)[1]+')';
   renderDialog();dlg.showModal();
@@ -406,10 +527,18 @@ function renderDialog(){
   const p=openP;if(!p)return;const v=pv(p);
   const c=$('dcap');c.textContent=v.c;c.className=p.t==='letter'?'letter':'';
   $('dby').textContent=v.b+' · '+kw(p.k);
+  const tb=$('dtr');tb.replaceChildren();
+  if(v.st==='auto'||v.st==='orig'){
+    if(v.st==='auto')tb.appendChild(mk('small','','🌐 '+t('trAuto')));
+    const b=mk('button','back',v.st==='auto'?t('trShowOrig'):t('trShowTr'));b.type='button';b.style.cssText='padding:2px 12px;font-size:.8rem';
+    b.onclick=()=>{if(showOrig.has(p.id))showOrig.delete(p.id);else showOrig.add(p.id);renderDialog();refresh()};
+    tb.appendChild(b);
+  }else if(v.st==='pending')tb.appendChild(mk('small','',t('trWorking')));
+  else if(v.st==='fail')tb.appendChild(mk('small','',t('trFail')));
   renderRep();
 }
 function renderRep(){
-  const box=$('rep');box.replaceChildren();
+  const box=$('rep'),prevTx=($('rtx')||{}).value||'',prevBy=($('rby')||{}).value||'';box.replaceChildren();
   if(!openP||!openP.id)return;
   const rs=repsFor(openP.id);
   box.appendChild(mk('h4','',t('repH')));
@@ -419,16 +548,16 @@ function renderRep(){
     const top=mk('div');top.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap';top.appendChild(hd);
     if(villager){const dl=mk('button','dbtn',t('delReply'));dl.type='button';dl.style.cssText='padding:1px 10px;font-size:.75rem';dl.onclick=()=>deleteReply(r);top.appendChild(dl)}
     e.appendChild(top);
-    const txt=r.tx?(r.tx[lang]||r.tx.en):r.text;e.appendChild(mk('p','',txt));
-    if(!r.tx&&r.lang&&r.lang!==lang)e.appendChild(mk('small','',t('writtenIn',r.lang)));
+    const rt=replyView(r);e.appendChild(mk('p','',rt.text));
+    if(rt.auto)e.appendChild(mk('small','','🌐 '+t('trAuto')));else if(rt.pending)e.appendChild(mk('small','',t('trWorking')));
     box.appendChild(e);
   });
   if(villager){
     const f=mk('form','rf');
     const l1=mk('label','',t('repYour'));l1.htmlFor='rtx';
-    const ta=mk('textarea');ta.id='rtx';ta.rows=3;ta.maxLength=500;ta.required=true;
+    const ta=mk('textarea');ta.id='rtx';ta.rows=3;ta.maxLength=500;ta.required=true;ta.value=prevTx;
     const l2=mk('label','',t('repAs'));l2.htmlFor='rby';
-    const nm=mk('input');nm.id='rby';nm.type='text';nm.maxLength=40;nm.required=true;nm.placeholder=t('repAsPh');nm.value=lastBy;
+    const nm=mk('input');nm.id='rby';nm.type='text';nm.maxLength=40;nm.required=true;nm.placeholder=t('repAsPh');nm.value=prevBy||lastBy;
     const bt=mk('button','back',t('repPost'));bt.type='submit';bt.style.justifySelf='start';
     f.append(l1,ta,l2,nm,bt);
     f.onsubmit=async e=>{
@@ -438,8 +567,8 @@ function renderRep(){
       try{
         if(!db)throw new Error('offline');
         await db.collection('replies').doc('r'+Date.now()+Math.random().toString(36).slice(2,6)).set(rec);
-      }catch(err){repsLocal.push(rec);msg=t('repLocal')}
-      bt.disabled=false;renderRep();renderLetters();toast(msg);
+      }catch(err){repsLocal.push({...rec,id:'lr'+Date.now()});msg=t('repLocal')}
+      bt.disabled=false;ta.value='';renderRep();renderLetters();toast(msg);
     };
     box.appendChild(f);
   }else{
@@ -472,7 +601,7 @@ function card(p,i){
   if(v.to)c.appendChild(mk('span','to',t('toLbl')+v.to));
   c.appendChild(mk('q','',v.body||v.c));
   const n=repsFor(p.id).length;
-  c.appendChild(mk('small','',t('from')+v.b+(n?' · 💬 '+t('repCnt',n):'')));
+  c.appendChild(mk('small','',t('from')+v.b+(v.st==='auto'?' · 🌐':'')+(n?' · 💬 '+t('repCnt',n):'')));
   f.appendChild(c);
   f.onclick=()=>openPhoto(p);f.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPhoto(p)}};
   return f;
@@ -574,7 +703,7 @@ function buildRec(){
   const T=TPL[tpl],b=who()==='anon'?t('anon'):(upname.value.trim()||t('aguest'));
   const msg=$('tfmsg').value.trim(),to=T.dear?$('tfto').value.trim():t('futureTo');
   const head=T.dear?t('dearHead',to):t('dearFuture');
-  return {k:normKw(upk.value),to,body:msg,c:head+'\n\n'+msg+'\n\n'+$('upsign').value+'\n'+b,b,t:'letter',m:pm,d:DES[des],col:COLORS[colr],e:cover};
+  return {k:normKw(upk.value),wl:detect(msg)||lang,to,body:msg,c:head+'\n\n'+msg+'\n\n'+$('upsign').value+'\n'+b,b,t:'letter',m:pm,d:DES[des],col:COLORS[colr],e:cover};
 }
 function renderKwPick(){
   const box=$('kwpick');
@@ -681,6 +810,10 @@ function makeDb(){return{collection:name=>({
       const r=await fetch(SB_URL+'/rest/v1/docs?on_conflict=collection,id',{method:'POST',headers:sbH({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({collection:name,id:String(id),data})});
       if(!r.ok)throw new Error('set '+r.status);pollAll();
     },
+    update:async data=>{
+      const r=await fetch(SB_URL+'/rest/v1/docs?collection=eq.'+encodeURIComponent(name)+'&id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:sbH({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify({data})});
+      if(!r.ok)throw new Error('upd '+r.status);pollAll();
+    },
     delete:async()=>{
       const r=await fetch(SB_URL+'/rest/v1/docs?collection=eq.'+encodeURIComponent(name)+'&id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbH()});
       if(!r.ok)throw new Error('del '+r.status);pollAll();
@@ -714,8 +847,8 @@ function makeAssets(){return{
 (()=>{try{
   if(!SB_ON)return;
   db=makeDb();assets=makeAssets();
-  db.collection('photos').onSnapshot(sn=>{remote=sn.docs.map(d=>({...d.data(),_id:d.id})).filter(x=>x&&x.k&&(x.c||x.body)).map(x=>{const hasImg=/^\/_blob\/[a-z0-9]+\.[a-z0-9]{1,5}$/i.test(String(x.img||''));return{id:String(x._id),k:String(x.k),c:String(x.c||''),b:String(x.b||''),img:hasImg?blobUrl(x.img):'',t:x.t,d:x.d,col:x.col,e:x.e?[...String(x.e)].slice(0,4).join(''):'',to:x.to?String(x.to):'',body:x.body?String(x.body):'',m:x.m==='video'?'video':'photo'}});refresh()},()=>{});
-  db.collection('replies').onSnapshot(sn=>{repsRemote=sn.docs.map(d=>({...d.data(),_id:d.id})).filter(x=>x&&x.pid&&x.text&&x.by).map(x=>({id:x._id,pid:String(x.pid),by:String(x.by).slice(0,40),text:String(x.text).slice(0,500),lang:x.lang==='id'?'id':'en',at:Number(x.at)||0}));renderLetters();if(dlg.open)renderRep()},()=>{});
+  db.collection('photos').onSnapshot(sn=>{remote=sn.docs.map(d=>{const raw=d.data(),x={...raw,_id:d.id};const hasImg=/^\/_blob\/[a-z0-9]+\.[a-z0-9]{1,5}$/i.test(String(x.img||''));return{id:String(x._id),k:String(x.k||''),c:String(x.c||''),b:String(x.b||''),img:hasImg?blobUrl(x.img):'',t:x.t,d:x.d,col:x.col,e:x.e?[...String(x.e)].slice(0,4).join(''):'',to:x.to?String(x.to):'',body:x.body?String(x.body):'',m:x.m==='video'?'video':'photo',wl:x.wl==='id'?'id':x.wl==='en'?'en':'',tr:(x.tr&&typeof x.tr==='object')?x.tr:null,raw}}).filter(x=>x.k&&(x.c||x.body));remote.forEach(x=>{if(x.tr)['en','id'].forEach(tl=>{const o=x.tr[tl];if(o&&o.k&&!KWT[tl+'|'+x.k])KWT[tl+'|'+x.k]=String(o.k).slice(0,48)})});refresh()},()=>{});
+  db.collection('replies').onSnapshot(sn=>{repsRemote=sn.docs.map(d=>{const raw=d.data();return{...raw,_id:d.id,raw}}).filter(x=>x&&x.pid&&x.text&&x.by).map(x=>({id:x._id,pid:String(x.pid),by:String(x.by).slice(0,40),text:String(x.text).slice(0,500),lang:x.lang==='id'?'id':'en',at:Number(x.at)||0,tr:(x.tr&&typeof x.tr==='object')?x.tr:null,raw:x.raw}));renderLetters();if(dlg.open)renderRep()},()=>{});
 }catch(e){}})();
 
 /* ---------- tabs + language switch ---------- */
